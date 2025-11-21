@@ -195,11 +195,13 @@ class FeedForwardLayer(nn.Module):
             x (torch.Tensor): The output tensor. shape: (batch_size, seq_len, d_model)
         ''' 
         # TODO: Implement forward: Follow the figure in the writeup
-
+        residual = x
         # NOTE: For some regularization you can apply dropout to the output of the feed-forward network before adding the residual connection
-        
-        x = NotImplementedError
+        x = self.norm(x)
+        x = self.ffn(x)
+        x = self.dropout(x)
+        output = x + residual
         
         # TODO: Return the output tensor
-        raise NotImplementedError # Remove once implemented
+        return output
     
