@@ -118,20 +118,27 @@ class DecoderOnlyTransformer(nn.Module):
         self.num_layers      = num_layers
         
         # TODO: Create a ModuleList of decoder layers based on the number of layers
-        self.dec_layers     = NotImplementedError # ModuleList of decoder layers
+        self.dec_layers     = nn.ModuleList([
+            SelfAttentionDecoderLayer(
+                d_model=d_model,
+                num_heads=num_heads,
+                d_ff=d_ff,
+                dropout=dropout,
+            )
+            for _ in range(num_layers)
+        ])
+# ModuleList of decoder layers
 
         # TODO: Create target embedding and other layers
-        self.target_embedding       = NotImplementedError # Target embedding
-        self.positional_encoding    = NotImplementedError # Positional encoding
-        self.final_linear           = NotImplementedError # Final linear layer
-        self.dropout                = NotImplementedError # Dropout
-        self.norm                   = NotImplementedError # Layer norm
+        self.target_embedding       = nn.Embedding(num_classes, d_model) # Target embedding
+        self.positional_encoding    = PositionalEncoding(d_model=d_model, max_len=max_len) # Positional encoding
+        self.final_linear           = nn.Linear(d_model, num_classes) # Final linear layer
+        self.dropout                = nn.Dropout(dropout) # Dropout
+        self.norm                   = nn.LayerNorm(d_model) # Layer norm
 
         # Weight tying (extra form of regularization, read more about it)
         if weight_tying:
             self.target_embedding.weight = self.final_linear.weight
-
-        raise NotImplementedError # Remove once implemented
 
     def forward(self, padded_targets: torch.Tensor, target_lengths: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, dict]:
         '''
@@ -148,14 +155,15 @@ class DecoderOnlyTransformer(nn.Module):
             raise ValueError("target_lengths must be provided during training")
         
         # TODO: Implement forward
+        device = padded_targets.device
 
         # TODO: Create padding mask for padded_targets on the same device as the input (use PadMask)
         pad_mask_dec = None
         if target_lengths is not None:
-            pad_mask_dec = NotImplementedError
+            pad_mask_dec = PadMask(padded_targets, target_lengths).to(device)
         
         # TODO: Create causal mask to prevent attending to future tokens on the same device as the input (use CausalMask)
-        causal_mask = NotImplementedError
+        causal_mask = CausalMask(padded_targets).to(device)
 
         # TODO: Apply the embedding
         x = NotImplementedError
