@@ -90,7 +90,8 @@ class LMDataset(Dataset):
             # TODO: Load the transcript
             # Note: Use np.load to load the numpy array and convert to list and then join to string 
             arr = np.load(file, allow_pickle=True)
-            char_list = list(arr)          
+            obj = arr.tolist()
+            char_list = list(obj)          
             transcript = "".join(char_list)
             
             # Track character count (before tokenization)
@@ -98,8 +99,7 @@ class LMDataset(Dataset):
             self.total_chars += len(transcript)
             
             # TODO: Use tokenizer to encode the transcript
-            tokens = self.tokenizer.tokenize(transcript)
-            tokenized = self.tokenizer.encode(tokens)
+            tokenized = self.tokenizer.encode(transcript)
             
             # Track token count (excluding special tokens)
             # DO NOT MODIFY
@@ -125,7 +125,7 @@ class LMDataset(Dataset):
             raise ValueError("Shifted and golden transcripts are misaligned")
         
         # TODO: Store the length of the dataset
-        self.length = NotImplementedError
+        self.length = len(self.transcripts_shifted)
         
     def get_avg_chars_per_token(self) -> float:
         '''
