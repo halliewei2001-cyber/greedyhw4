@@ -19,15 +19,15 @@ class Softmax:
         """
         if self.dim > len(Z.shape) or self.dim < -len(Z.shape):
             raise ValueError("Dimension to apply softmax to is greater than the number of dimensions in Z")
-        
-        max_z, _ = np.max(Z, axis=self.dim, keepdims=True)
-        Z_shifted = Z - max_z
-
-        exp_z = np.exp(Z_shifted)
-        sum_exp = np.sum(exp_z, axis=self.dim, keepdims=True)
+    
         # TODO: Implement forward pass
         # Compute the softmax in a numerically stable way
         # Apply it to the dimension specified by the `dim` parameter
+        max_z = np.max(Z, axis=self.dim, keepdims=True)
+        Z_shifted = Z - max_z
+        exp_z = np.exp(Z_shifted)
+        sum_exp = np.sum(exp_z, axis=self.dim, keepdims=True)
+
         self.A = exp_z / sum_exp
         return self.A
 
@@ -45,20 +45,22 @@ class Softmax:
            
         # Reshape input to 2D
         if len(shape) > 2:
-            self.A = self.A
-            dLdA = dLdA
+            A_moved = np.moveaxis(self.A, self.dim, -1)      
+            dLdA_moved = np.moveaxis(dLdA, self.dim, -1)   
+            moved_shape = A_moved.shape                    
 
-        s = np.sum(dLdA * self.A, axis=self.dim, keepdims=True)
-        dLdZ = self.A * (dLdA - s)
-
+            self.A = A_moved.reshape(-1, C)
+            dLdA = dLdA_moved.reshape(-1, C)
+        
+        s = np.sum(dLdA * self.A, axis=1, keepdims=True)
+        dLdZ = self.A * (dLdA - s)    
 
         # Reshape back to original dimensions if necessary
         if len(shape) > 2:
             # Restore shapes to original
-            self.A = self.A
-            dLdZ = dLdZ
+            A_restored = self.A.reshape(shape)
+            self.A = np.moveaxis(A_restored, -1, self.dim)
+            dLdZ = dLdZ.reshape(shape)
+            dLdZ = np.moveaxis(dLdZ, -1, self.dim)
 
         return dLdZ
- 
-
-    
