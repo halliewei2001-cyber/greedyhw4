@@ -177,7 +177,7 @@ class FeedForwardLayer(nn.Module):
 
         # TODO: Initialize the feed-forward network (use nn.Sequential)
         # See writeup for what layers to use
-        self.ffn = nn.Sequential(nn.Linear(d_model,d_ff))
+        self.ffn = nn.Sequential(nn.Linear(d_model,d_ff),nn.GELU(),nn.Dropout(dropout),nn.Linear(d_ff,d_model))
         
         # TODO: Initialize the normalization layer
         self.norm = nn.LayerNorm(d_model)
@@ -204,4 +204,3 @@ class FeedForwardLayer(nn.Module):
         
         # TODO: Return the output tensor
         return output
-    
