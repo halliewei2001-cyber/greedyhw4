@@ -156,6 +156,11 @@ class LMTrainer(BaseTrainer):
         avg_perplexity_char = torch.exp(torch.tensor(avg_ce_loss_char))
         batch_bar.close()
 
+        for k in attn_weights:
+            if isinstance(attn_weights[k], torch.Tensor):
+                attn_weights[k] = attn_weights[k].detach().cpu()
+
+
         return {
             'ce_loss_token': avg_ce_loss,
             'ce_loss_char': avg_ce_loss_char,
@@ -222,6 +227,10 @@ class LMTrainer(BaseTrainer):
         avg_perplexity_token = torch.exp(torch.tensor(avg_ce_loss))
         avg_perplexity_char = torch.exp(torch.tensor(avg_ce_loss_char))
         batch_bar.close()
+
+        for k in attn_weights:
+            if isinstance(attn_weights[k], torch.Tensor):
+                attn_weights[k] = attn_weights[k].detach().cpu()
 
         return {
             'ce_loss_token': avg_ce_loss,
@@ -404,6 +413,9 @@ class LMTrainer(BaseTrainer):
                     temperature=generation_config.get('temperature', 1.0),
                     repeat_penalty=generation_config.get('repeat_penalty', 1.0),
                 )
+                seqs = seqs.cpu()
+                scores = scores.cpu()
+                prompts_cpu = prompts.cpu()
                  # Remove if you implemented the greedy search method
 
         # Post-process sequences (trim upto EOS token)
