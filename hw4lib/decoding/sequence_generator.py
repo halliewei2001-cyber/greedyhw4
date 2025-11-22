@@ -301,6 +301,15 @@ class SequenceGenerator:
             if seq is a batch of sequences, return a list of tensors with each sequence truncated at first EOS
         """
         # Handle single sequence case
+        if isinstance(seq, list):
+            if len(seq) == 0:
+                return seq  
+            
+            if torch.is_tensor(seq[0]):
+                seq = torch.stack(seq, dim=0)
+            else:
+                
+                seq = torch.tensor(seq, dtype=torch.long)
         if seq.dim() == 1:
             eos_indices = (seq == tokenizer.eos_id).nonzero()
             if len(eos_indices) > 0:
