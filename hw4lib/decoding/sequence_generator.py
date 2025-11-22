@@ -188,7 +188,6 @@ class SequenceGenerator:
             scores = torch.where(finished, scores, scores + token_scores)
             x = torch.cat([x, next_tokens.unsqueeze(1)], dim=1)
             finished = finished | (next_tokens == self.tokenizer.eos_id)
-        x = self.post_process_sequence(x, self.tokenizer)
         
         return x, scores
 
