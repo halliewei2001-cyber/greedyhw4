@@ -222,7 +222,103 @@ class SequenceGenerator:
             raise ValueError("max_length must be >= input sequence length")
         
         # TODO: Implement beam search
-        raise NotImplementedError # Remove once implemented
+        batch_size, start_len = x.shape
+        device = x.device
+
+        # ============================
+        # Step 1: initial scoring
+        # ============================
+        logits = self.score_fn(x)  # (B, V)
+        logits = self._apply_repeat_penalty(logits, x, repeat_penalty)
+        logits = logits / temperature
+        log_probs = torch.log_softmax(logits, dim=-1)
+
+        top_scores, top_tokens = torch.topk(log_probs, beam_width, dim=-1)  # (B, beam)
+
+        # sequences: (B, beam, L_start+1)
+        sequences = x.unsqueeze(1).repeat(1, beam_width, 1)
+        sequences = torch.cat([sequences, top_tokens.unsqueeze(-1)], dim=-1)
+
+        scores = top_scores.clone()  # (B, beam)
+
+        eos_id = self.tokenizer.eos_id
+        finished = (top_tokens == eos_id)  # (B, beam)
+
+        vocab_size = logits.size(-1)
+
+        # ============================
+        # Beam step loop
+        # ============================
+        while sequences.size(2) < self.max_length:
+
+            if finished.all():
+                break
+
+            B, K, L = sequences.shape
+
+            # Next logits storage
+            next_logits = torch.zeros(B, K, vocab_size, device=device)
+
+            # ---- score_fn must be called for each beam independently ----
+            for b in range(B):
+                for k in range(K):
+                    seq = sequences[b, k].unsqueeze(0)  # (1, L)
+                    next_logits[b, k] = self.score_fn(seq)[0]  # test_decoding requires shape (1,L)
+
+            # repetition penalty + temperature
+            next_logits = self._apply_repeat_penalty(next_logits, sequences, repeat_penalty)
+            next_logits = next_logits / temperature
+            next_log_probs = torch.log_softmax(next_logits, dim=-1)  # (B, K, V)
+
+            # ---- freeze finished beams ----
+            for b in range(B):
+                for k in range(K):
+                    if finished[b, k]:
+                        mask = torch.ones(vocab_size, dtype=torch.bool, device=device)
+                        mask[eos_id] = False
+                        next_log_probs[b, k, mask] = float('-inf')
+                        next_log_probs[b, k, eos_id] = 0.0
+
+            # Expand scores: (B, K, V)
+            expanded_scores = scores.unsqueeze(-1) + next_log_probs
+
+            # Flatten to (B, K*V)
+            flat_scores = expanded_scores.view(B, -1)
+
+            # Pick top K new beams
+            new_scores, new_idx = torch.topk(flat_scores, beam_width, dim=-1)
+
+            parent_beam = new_idx // vocab_size
+            next_token  = new_idx %  vocab_size
+
+            # ============================
+            # Rebuild sequences for next step
+            # ============================
+            new_sequences = torch.zeros(B, K, L + 1, dtype=torch.long, device=device)
+            new_finished  = torch.zeros(B, K, dtype=torch.bool, device=device)
+
+            for b in range(B):
+                for k in range(K):
+                    p = parent_beam[b, k].item()
+                    t = next_token[b, k].item()
+
+                    # copy parent sequence
+                    new_sequences[b, k, :-1] = sequences[b, p]
+                    new_sequences[b, k, -1]  = t
+
+                    # update finished state
+                    new_finished[b, k] = finished[b, p] or (t == eos_id)
+
+            sequences = new_sequences
+            scores = new_scores
+            finished = new_finished
+
+        # ============================
+        # Final return
+        # ============================
+        return sequences, scores
+
+
 
     def generate_sample(
             self,

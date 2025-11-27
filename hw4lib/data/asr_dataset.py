@@ -83,9 +83,9 @@ class ASRDataset(Dataset):
 
         # TODO: Get tokenizer ids for special tokens (eos, sos, pad)
         # Hint: See the class members of the H4Tokenizer class
-        self.eos_token = self.tokenizer.eos_token_id
-        self.sos_token = self.tokenizer.sos_token_id
-        self.pad_token = self.tokenizer.pad_token_id
+        self.eos_token = self.tokenizer.eos_id
+        self.sos_token = self.tokenizer.sos_id
+        self.pad_token = self.tokenizer.pad_id
 
         # Set up data paths 
         # TODO: Use root and partition to get the feature directory
@@ -101,7 +101,7 @@ class ASRDataset(Dataset):
             ]
         )
         # TODO: Take subset
-        subset_size      = self.config.get("subset", {}).get(self.partition, -1)
+        subset_size      = self.fbank_files = self.fbank_files[:subset_size]
         self.fbank_files = self.fbank_files[:subset_size]
         
         # TODO: Get the number of samples in the dataset  
@@ -295,51 +295,51 @@ class ASRDataset(Dataset):
 
         # TODO: Collect transposed features from the batch into a list of tensors (B x T x F)
         # Note: Use list comprehension to collect the features from the batch   
-        batch_feats  = NotImplementedError
+        batch_feats  = [sample[0].transpose(0, 1) for sample in batch]
 
         # TODO: Collect feature lengths from the batch into a tensor
         # Note: Use list comprehension to collect the feature lengths from the batch   
-        feat_lengths = NotImplementedError # B
+        feat_lengths = torch.tensor([feat.shape[0] for feat in batch_feats], dtype=torch.long) # B
 
         # TODO: Pad features to create a batch of fixed-length padded features
         # Note: Use torch.nn.utils.rnn.pad_sequence to pad the features (use pad_token as the padding value)
-        padded_feats = NotImplementedError # B x T x F
+        padded_feats = padded_feats.permute(0, 2, 1) # B x T x F
 
         # TODO: Handle transcripts for non-test partitions
         padded_shifted, padded_golden, transcript_lengths = None, None, None
         if self.partition != "test-clean":
             # TODO: Collect shifted and golden transcripts from the batch into a list of tensors (B x T)  
             # Note: Use list comprehension to collect the transcripts from the batch   
-            batch_shifted      = NotImplementedError # B x T
-            batch_golden       = NotImplementedError # B x T
+            batch_shifted      = [sample[1] for sample in batch] # B x T
+            batch_golden       = [sample[2] for sample in batch] # B x T
 
             # TODO: Collect transcript lengths from the batch into a tensor
             # Note: Use list comprehension to collect the transcript lengths from the batch   
-            transcript_lengths = NotImplementedError # B  
+            transcript_lengths = torch.tensor([t.shape[0] for t in batch_shifted], dtype=torch.long) # B  
 
             # TODO: Pad transcripts to create a batch of fixed-length padded transcripts
             # Note: Use torch.nn.utils.rnn.pad_sequence to pad the transcripts (use pad_token as the padding value)
-            padded_shifted     = NotImplementedError # B x T
-            padded_golden      = NotImplementedError # B x T
+            padded_shifted     = pad_sequence(batch_shifted, batch_first=True, padding_value=self.pad_token) # B x T
+            padded_golden      = pad_sequence(batch_golden, batch_first=True, padding_value=self.pad_token) # B x T
 
         # TODO: Apply SpecAugment for training
         if self.config["specaug"] and self.isTrainPartition:
             # TODO: Permute the features to (B x F x T)
-            padded_feats = NotImplementedError # B x F x T
+            padded_feats = padded_feats.permute(0, 2, 1) # B x F x T
 
             # TODO: Apply frequency masking
             if self.config["specaug_conf"]["apply_freq_mask"]:
                 for _ in range(self.config["specaug_conf"]["num_freq_mask"]):
-                    padded_feats = NotImplementedError
+                    padded_feats = padded_feats.permute(0, 2, 1)
 
             # TODO: Apply time masking
             if self.config["specaug_conf"]["apply_time_mask"]:
                 for _ in range(self.config["specaug_conf"]["num_time_mask"]):
-                    padded_feats = NotImplementedError
+                    padded_feats = self.freq_mask(padded_feats)
 
             # TODO: Permute the features back to (B x T x F)
-            padded_feats = NotImplementedError # B x T x F
+            padded_feats = self.time_mask(padded_feats) # B x T x F
 
         # TODO: Return the padded features, padded shifted, padded golden, feature lengths, and transcript lengths
-        raise NotImplementedError # Remove once implemented
+        return padded_feats, padded_shifted, padded_golden, feat_lengths, transcript_lengths # Remove once implemented
 
