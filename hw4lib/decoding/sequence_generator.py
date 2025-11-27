@@ -260,11 +260,11 @@ class SequenceGenerator:
             next_logits = torch.zeros(B, K, vocab_size, device=device)
 
             # ---- score_fn must be called for each beam independently ----
-            for b in range(B):
-                for k in range(K):
-                    seq = sequences[b, k].unsqueeze(0)  # (1, L)
-                    next_logits[b, k] = self.score_fn(seq)[0]  # test_decoding requires shape (1,L)
-
+            for k in range(K):
+        # 取出第 k 个 beam 上所有 batch 的序列: (B, L)
+                seqs_k = sequences[:, k, :]                # (B, L)
+                logits_k = self.score_fn(seqs_k)          # (B, V)，内部会用 trees[0], trees[1], ...
+                next_logits[:, k, :] = logits_k           
             # repetition penalty + temperature
             next_logits = self._apply_repeat_penalty(next_logits, sequences, repeat_penalty)
             next_logits = next_logits / temperature
@@ -306,16 +306,18 @@ class SequenceGenerator:
                     new_sequences[b, k, :-1] = sequences[b, p]
                     new_sequences[b, k, -1]  = t
 
-                    # update finished state
                     new_finished[b, k] = finished[b, p] or (t == eos_id)
 
             sequences = new_sequences
             scores = new_scores
             finished = new_finished
+            sorted_score, idx = torch.sort(scores, dim=1, descending=True)
+            scores = sorted_score
+            B, K, _ = sequences.shape
+            row_idx = torch.arange(B).unsqueeze(-1).repeat(1, K)
+            sequences = sequences[row_idx, idx]
+            finished  = finished[row_idx, idx]
 
-        # ============================
-        # Final return
-        # ============================
         return sequences, scores
 
 
