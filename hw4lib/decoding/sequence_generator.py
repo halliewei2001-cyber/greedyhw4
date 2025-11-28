@@ -225,30 +225,26 @@ class SequenceGenerator:
         batch_size, start_len = x.shape
         device = x.device
 
-        # ============================
-        # Step 1: initial scoring
-        # ============================
-        logits = self.score_fn(x)  # (B, V)
+        
+        logits = self.score_fn(x)  
         logits = self._apply_repeat_penalty(logits, x, repeat_penalty)
         logits = logits / temperature
         log_probs = torch.log_softmax(logits, dim=-1)
 
         top_scores, top_tokens = torch.topk(log_probs, beam_width, dim=-1)  # (B, beam)
 
-        # sequences: (B, beam, L_start+1)
+      
         sequences = x.unsqueeze(1).repeat(1, beam_width, 1)
         sequences = torch.cat([sequences, top_tokens.unsqueeze(-1)], dim=-1)
 
-        scores = top_scores.clone()  # (B, beam)
+        scores = top_scores.clone()  
 
         eos_id = self.tokenizer.eos_id
-        finished = (top_tokens == eos_id)  # (B, beam)
+        finished = (top_tokens == eos_id)  
 
         vocab_size = logits.size(-1)
 
-        # ============================
-        # Beam step loop
-        # ============================
+        
         while sequences.size(2) < self.max_length:
 
             if finished.all():
@@ -256,21 +252,19 @@ class SequenceGenerator:
 
             B, K, L = sequences.shape
 
-            # Next logits storage
             next_logits = torch.zeros(B, K, vocab_size, device=device)
 
-            # ---- score_fn must be called for each beam independently ----
+            
             for k in range(K):
-        # 取出第 k 个 beam 上所有 batch 的序列: (B, L)
-                seqs_k = sequences[:, k, :]                # (B, L)
-                logits_k = self.score_fn(seqs_k)          # (B, V)，内部会用 trees[0], trees[1], ...
+        
+                seqs_k = sequences[:, k, :]               
+                logits_k = self.score_fn(seqs_k)          
                 next_logits[:, k, :] = logits_k           
-            # repetition penalty + temperature
+
             next_logits = self._apply_repeat_penalty(next_logits, sequences, repeat_penalty)
             next_logits = next_logits / temperature
-            next_log_probs = torch.log_softmax(next_logits, dim=-1)  # (B, K, V)
+            next_log_probs = torch.log_softmax(next_logits, dim=-1)  
 
-            # ---- freeze finished beams ----
             for b in range(B):
                 for k in range(K):
                     if finished[b, k]:
@@ -279,21 +273,19 @@ class SequenceGenerator:
                         next_log_probs[b, k, mask] = float('-inf')
                         next_log_probs[b, k, eos_id] = 0.0
 
-            # Expand scores: (B, K, V)
+           
             expanded_scores = scores.unsqueeze(-1) + next_log_probs
 
-            # Flatten to (B, K*V)
+           
             flat_scores = expanded_scores.view(B, -1)
 
-            # Pick top K new beams
+            
             new_scores, new_idx = torch.topk(flat_scores, beam_width, dim=-1)
 
             parent_beam = new_idx // vocab_size
             next_token  = new_idx %  vocab_size
 
-            # ============================
-            # Rebuild sequences for next step
-            # ============================
+            
             new_sequences = torch.zeros(B, K, L + 1, dtype=torch.long, device=device)
             new_finished  = torch.zeros(B, K, dtype=torch.bool, device=device)
 
@@ -302,7 +294,7 @@ class SequenceGenerator:
                     p = parent_beam[b, k].item()
                     t = next_token[b, k].item()
 
-                    # copy parent sequence
+
                     new_sequences[b, k, :-1] = sequences[b, p]
                     new_sequences[b, k, -1]  = t
 

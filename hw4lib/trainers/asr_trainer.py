@@ -62,7 +62,10 @@ class ASRTrainer(BaseTrainer):
         # TODO: Initialize CE loss
         # How would you set the ignore_index? 
         # Use value in config to set the label_smoothing argument
-        self.ce_criterion = NotImplementedError
+        self.ce_criterion = nn.CrossEntropyLoss(
+            ignore_index=ignore_index,
+            label_smoothing=label_smoothing
+        )
         
         # TODO: Initialize CTC loss if needed
         # You can use the pad token id as the blank index
@@ -74,7 +77,6 @@ class ASRTrainer(BaseTrainer):
                 zero_infinity=True
             )
         
-        raise NotImplementedError # Remove once implemented
 
 
     def _train_epoch(self, dataloader):
