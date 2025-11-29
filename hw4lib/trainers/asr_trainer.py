@@ -130,12 +130,12 @@ class ASRTrainer(BaseTrainer):
                 if self.ctc_weight > 0:
 
                     ctc_logits = ctc_inputs["log_probs"]      
-                    ctc_input_lengths = ctc_inputs["lengths"] 
+                    input_lengths = ctc_inputs["lengths"] 
 
                     ctc_loss = self.ctc_criterion(
                         ctc_logits,          # (T, B, C)
                         targets_golden,      # (B, S)
-                        ctc_input_lengths,   # (B,)
+                        input_lengths,   # (B,)
                         transcript_lengths   # (B,)
                     )
     
