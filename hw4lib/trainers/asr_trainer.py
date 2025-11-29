@@ -140,12 +140,6 @@ class ASRTrainer(BaseTrainer):
                     )
     
 
-                    ctc_loss = self.ctc_criterion(
-                        ctc_loss,                
-                        targets_golden,            
-                        input_lengths,           
-                        transcript_lengths         
-                    )
                     
                     loss = ce_loss + self.ctc_weight * ctc_loss
                 else:
