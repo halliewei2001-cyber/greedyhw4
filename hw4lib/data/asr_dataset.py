@@ -146,8 +146,7 @@ class ASRDataset(Dataset):
 
 
             # TODO: Truncate features to num_feats set by you in the config
-            feat = feat[:, : self.config["num_feats"]]
-
+            feat = feat[:self.config["num_feats"], :]
 
             # Append to self.feats (num_feats is set by you in the config)
             self.feats.append(feat)
