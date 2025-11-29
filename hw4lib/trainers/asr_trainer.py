@@ -110,7 +110,7 @@ class ASRTrainer(BaseTrainer):
             with torch.autocast(device_type=self.device, dtype=torch.float16):
                 # TODO: get raw predictions and attention weights and ctc inputs from model
                 seq_out, curr_att, ctc_inputs = self.model(
-                    feats=feats.to(self.device),
+                    padded_sources=feats.to(self.device),
                     targets_shifted=targets_shifted.to(self.device),
                     source_lengths=feat_lengths.to(self.device),
                     target_lengths=transcript_lengths.to(self.device),
