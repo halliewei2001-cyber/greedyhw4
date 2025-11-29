@@ -128,7 +128,17 @@ class ASRTrainer(BaseTrainer):
                 )
                 # TODO: Calculate CTC loss if needed
                 if self.ctc_weight > 0:
-                    ctc_loss = ctc_inputs.permute(1, 0, 2)
+
+                    ctc_logits = ctc_inputs["log_probs"]      
+                    ctc_input_lengths = ctc_inputs["lengths"] 
+
+                    ctc_loss = self.ctc_criterion(
+                        ctc_logits,          # (T, B, C)
+                        targets_golden,      # (B, S)
+                        ctc_input_lengths,   # (B,)
+                        transcript_lengths   # (B,)
+                    )
+            
 
                     input_lengths = self.model.get_ctc_input_lengths(feat_lengths)
 
