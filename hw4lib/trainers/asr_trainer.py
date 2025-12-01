@@ -513,7 +513,7 @@ class ASRTrainer(BaseTrainer):
 
         beam_10_config = common_config.copy()
         beam_10_config.update({
-            'beam_width': 10,
+            'beam_width': 4,
         })
         
         beam_20_config = common_config.copy()
